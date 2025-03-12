@@ -2,38 +2,23 @@
 
 这是一个用于测试Android平台Performance和Power的Flutter Demo App，模拟了微信朋友圈的滑动场景，并提供了三种不同负载级别的测试界面。
 
-## 项目特点
+# WeChat Moments Performance Testing Flutter Demo
 
-- **一致性测试环境**：每次启动应用时，界面、UI和逻辑都保持一致，确保测试结果的可比性
-- **三种负载级别**：
-  - 轻负载：滑动时计算量小，UI反应迅速
-  - 中负载：滑动时计算量中等，UI有一定压力
-  - 重负载：滑动时计算量大，对设备性能要求高
-  
-- **精确控制**：
-  - 使用固定种子的随机数生成器，确保每次测试的数据一致
-  - 通过不同算法模拟不同级别的CPU和GPU负载
-  
-- **设计理念**：
-  - 遵循Material Design 3设计规范
-  - 采用Clean Architecture架构设计
-  - 使用Provider进行状态管理
-  - 实现响应式UI布局，适配不同尺寸设备
+This is a Flutter Demo App for testing Android platform Performance and Power, simulating the scrolling scenario of WeChat Moments and providing test interfaces with three different load levels.
 
-## 使用方法
+## 项目特点 / Project Features
 
-1. 启动应用后，在主界面选择要测试的负载级别
-2. 在滑动列表时观察UI性能表现
-3. 使用Android Profiler或其他工具收集性能数据
-4. 分析结果并优化设备性能
+- **一致性测试环境 / Consistent Test Environment**
+- **三种负载级别 / Three Load Levels**
+- **精确控制 / Precise Control**
+- **微信风格UI / WeChat Style UI**
 
-## 实现细节
+## 使用方法 / Usage
 
-- 使用ListView.builder高效显示列表内容
-- 根据不同负载级别动态调整计算复杂度
-- 滑动时实时生成模拟计算负载
-- 实现Widget对象缓存，减少创建开销
+选择不同负载级别进行测试，观察滚动性能。
+Select different load levels for testing and observe scrolling performance.
 
-## 注意事项
+## 资源文件 / Resource Files
 
-此应用仅用于性能测试，不具备实际社交功能。数据均为本地生成的模拟数据。
+- 朋友圈图片：assets/images/local1.jpg 到 local11.jpg
+- 用户头像：assets/avatars/avatar1.jpg 到 avatar11.jpg
