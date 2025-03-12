@@ -42,6 +42,7 @@ class PostItem extends StatelessWidget {
           // 帖子内容
           Expanded(
             child: Column(
+              mainAxisSize: MainAxisSize.min, // 使用min确保内容尽可能紧凑
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // 用户名称 - 增大字体
@@ -66,15 +67,17 @@ class PostItem extends StatelessWidget {
                   ),
                 ),
                 
-                const SizedBox(height: 10), // 增加间距
-                
-                // 图片网格
+                // 图片网格 - 设置合适的上边距，确保紧跟在文本后面
                 if (post.imageUrls.isNotEmpty)
-                  PostImageGrid(
-                    imageUrls: post.imageUrls,
-                    postId: post.id,
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10.0),
+                    child: PostImageGrid(
+                      imageUrls: post.imageUrls,
+                      postId: post.id,
+                    ),
                   ),
                 
+                // 位置信息 - 设置合适的上边距
                 if (post.location != null && post.location!.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),

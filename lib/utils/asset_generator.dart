@@ -320,7 +320,7 @@ class AssetGenerator {
       imageName = 'local$imageIndex';
     }
     
-    final String imagePath = 'assets/images/$imageName.jpg';
+    final String imagePath = 'assets/images/$imageName.jpeg';
     
     // 构建真实图片
     final Widget imageWidget = Container(
