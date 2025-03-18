@@ -44,12 +44,27 @@ This is a Flutter Demo App for testing Android platform Performance and Power, s
 4. GPU渲染管线 / GPU Rendering Pipeline
 
 ### 数据流 / Data Flow
-输入: 原生视频/相机帧 / Input: Native video/camera frames
+输入: Flutter渲染帧 / Input: Flutter rendering frames
 → SurfaceTexture (Android)
 → 纹理注册表(ID映射) / Texture Registry (ID mapping)
-→ Flutter引擎 / Flutter Engine
-→ GPU渲染 / GPU Rendering
-输出: 显示帧 / Output: Displayed frame
+→ TextureView (Native Android)
+→ 屏幕显示 / Screen Display
+
+### 详细架构说明 / Architecture Details
+1. **Flutter层组件**:
+   - `NativeTextureView`: Flutter小部件，包装原生TextureView
+   - `TextureViewController`: 管理与原生层的通信
+   - `Texture`小部件: 显示从原生层获取的纹理内容
+
+2. **Native层组件**:
+   - `TextureViewFactory`: 创建和管理原生TextureView实例
+   - `FlutterTextureView`: 实现PlatformView接口，管理TextureView的生命周期
+   - 纹理调试覆盖层: 提供实时性能监控信息
+
+3. **通信机制**:
+   - Method Channel: Flutter与Native层之间的双向通信
+   - Texture Registry: 管理纹理ID和SurfaceTexture的映射
+   - 事件回调: 处理纹理创建、更新和销毁事件
 
 ## 使用方法 / Usage
 
@@ -65,6 +80,8 @@ This is a Flutter Demo App for testing Android platform Performance and Power, s
 - 随机生成用户数据，但保持一致性
 - 在滚动时模拟不同级别的CPU/GPU负载
 - 提供两种不同的渲染实现方式
+- 原生TextureView支持，实现更真实的性能测试场景
+- 调试信息覆盖层，实时显示渲染状态和性能数据
 
 ## 资源生成 / Resource Generation
 
@@ -76,3 +93,13 @@ This is a Flutter Demo App for testing Android platform Performance and Power, s
 ## 开发者信息 / Developer Information
 
 本项目为Flutter性能测试演示应用，专为Android平台性能和功耗测试设计。
+
+## 最近更新 / Recent Updates
+
+### 2024-12-12: TextureView渲染模式实现
+- 添加原生TextureView支持，实现Native与Flutter集成渲染
+- 新增TextureViewFactory类，实现PlatformView与Flutter的集成
+- 创建NativeTextureView和TextureViewController组件，提供Flutter侧API
+- 优化TextureView架构，将Flutter渲染内容与Android视图层分离
+- 添加调试信息显示，便于监控性能和渲染状态
+- 解决SurfaceTexture附加到多个上下文的问题
