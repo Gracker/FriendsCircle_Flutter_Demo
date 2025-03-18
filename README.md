@@ -6,6 +6,13 @@
 
 This is a Flutter Demo App for testing Android platform Performance and Power, simulating the scrolling scenario of WeChat Moments and providing test interfaces with two rendering modes (SurfaceView and TextureView), each offering three different load levels.
 
+## 开发环境要求 / Development Environment Requirements
+
+- Flutter SDK: 3.10.0 或以上 (推荐使用 3.29.1)
+- Dart SDK: 3.0.0 或以上
+- Android Studio: 最新版本
+- Xcode: 最新版本 (仅用于iOS开发)
+
 ## 项目特点 / Project Features
 
 - **一致性测试环境 / Consistent Test Environment**：每次启动应用时，界面、UI和逻辑都保持一致，确保测试结果的可比性。
