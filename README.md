@@ -29,9 +29,27 @@ This is a Flutter Demo App for testing Android platform Performance and Power, s
 - 通常有更好的性能表现
 
 ### TextureView模式 / TextureView Mode
-- 使用Flutter的TextureLayer渲染模式
+- 使用Android原生TextureView渲染
+- Flutter通过TextureLayer从原生层采样
+- 采用SurfaceTexture进行硬件加速渲染
+- 在GPU内存中使用零复制纹理采样
 - 适用于需要与其他UI元素混合的场景
-- 可能在某些设备上有不同的性能表现
+
+## TextureView实现架构 / TextureView Architecture
+
+### 架构组件 / Architecture Components
+1. Flutter引擎层 / Flutter Engine Layer
+2. 平台(Android)层 / Platform (Android) Layer 
+3. 纹理注册系统 / Texture Registry System
+4. GPU渲染管线 / GPU Rendering Pipeline
+
+### 数据流 / Data Flow
+输入: 原生视频/相机帧 / Input: Native video/camera frames
+→ SurfaceTexture (Android)
+→ 纹理注册表(ID映射) / Texture Registry (ID mapping)
+→ Flutter引擎 / Flutter Engine
+→ GPU渲染 / GPU Rendering
+输出: 显示帧 / Output: Displayed frame
 
 ## 使用方法 / Usage
 

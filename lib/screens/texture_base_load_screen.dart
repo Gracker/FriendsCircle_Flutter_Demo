@@ -6,6 +6,7 @@ import '../models/post_model.dart';
 import '../widgets/post_item.dart';
 import '../widgets/friend_circle_header.dart';
 import '../utils/asset_generator.dart';
+import '../native/native_texture_view.dart';
 
 /// 使用TextureView实现的基础负载屏幕组件
 abstract class TextureBaseLoadScreen extends StatefulWidget {
@@ -76,23 +77,18 @@ abstract class TextureBaseLoadScreenState<T extends TextureBaseLoadScreen> exten
     }
   }
 
-  /// 模拟计算负载
-  void _simulateLoad(int loadType) {
-    DataCenter().simulateComputeLoad(loadType);
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F8F8),
       extendBodyBehindAppBar: true,
       appBar: _showAppBar ? _buildAppBar() : null,
-      body: RepaintBoundary(
+      body: NativeTextureView(
+        loadType: widget.loadType,
         child: ListView.builder(
           controller: _scrollController,
           padding: EdgeInsets.zero,
           itemCount: _postData.length + 1, // +1 是因为有头部
-          // TextureView实现：使用RepaintBoundary包装每个子项，并使用AndroidView的TextureViewSurface模式
           itemBuilder: (context, index) {
             if (index == 0) {
               // 头部
@@ -100,10 +96,7 @@ abstract class TextureBaseLoadScreenState<T extends TextureBaseLoadScreen> exten
             } else {
               // 列表项
               final post = _postData[index - 1];
-              _simulateLoad(widget.loadType); // 模拟计算负载
-              return RepaintBoundary(
-                child: PostItem(post: post),
-              );
+              return PostItem(post: post);
             }
           },
         ),
@@ -179,11 +172,11 @@ abstract class TextureBaseLoadScreenState<T extends TextureBaseLoadScreen> exten
   Color _getLoadTypeColor() {
     switch (widget.loadType) {
       case Constants.LOAD_TYPE_LIGHT:
-        return Colors.blue;
+        return Color(Constants.COLOR_PRIMARY);
       case Constants.LOAD_TYPE_MEDIUM:
-        return Colors.orange;
+        return Color(Constants.COLOR_ACCENT);
       case Constants.LOAD_TYPE_HEAVY:
-        return Colors.purple;
+        return Color(Constants.COLOR_HEAVY);
       default:
         return Colors.blue;
     }
