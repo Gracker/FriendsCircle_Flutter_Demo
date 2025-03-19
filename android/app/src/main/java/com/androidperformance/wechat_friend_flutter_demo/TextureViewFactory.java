@@ -57,12 +57,7 @@ public class TextureViewFactory extends PlatformViewFactory {
 
 /**
  * Flutter平台视图的TextureView实现
- * 管理TextureView的生命周期和与Flutter的通信
- * 
- * 正确的架构:
- * 1. Flutter引擎生成内容并绘制到Surface
- * 2. 我们创建一个TextureView来显示自定义内容
- * 3. TextureView独立于Flutter的渲染流程，但我们在Flutter通知渲染完成时更新UI
+ * 真正使用TextureView作为渲染内容载体，内容由Flutter引擎提供
  */
 class FlutterTextureView implements PlatformView, MethodCallHandler, TextureView.SurfaceTextureListener {
     private static final String TAG = "FlutterTextureView";
@@ -70,16 +65,17 @@ class FlutterTextureView implements PlatformView, MethodCallHandler, TextureView
     private final int viewId;
     private final MethodChannel methodChannel;
     private final int loadType;
-    
-    // Flutter纹理相关
-    private final TextureRegistry.SurfaceTextureEntry textureEntry;
-    private final SurfaceTexture flutterSurfaceTexture;
-    private final Long textureId;
-    private Surface flutterSurface;
+    private final TextureRegistry textureRegistry;
     
     // 原生Android视图
     private final FrameLayout rootView;
     private final TextureView textureView;
+    
+    // 纹理相关
+    private SurfaceTexture surfaceTexture;
+    private Surface surface;
+    private TextureRegistry.SurfaceTextureEntry textureEntry;
+    private long flutterTextureId = -1;
     
     // 调试信息
     private final Paint debugPaint;
@@ -95,6 +91,7 @@ class FlutterTextureView implements PlatformView, MethodCallHandler, TextureView
         this.context = context;
         this.viewId = viewId;
         this.loadType = loadType;
+        this.textureRegistry = textureRegistry;
         
         Log.d(TAG, "创建FlutterTextureView: viewId=" + viewId + ", loadType=" + loadType);
         
@@ -104,17 +101,6 @@ class FlutterTextureView implements PlatformView, MethodCallHandler, TextureView
         
         // 获取主线程Handler
         mainHandler = new Handler(Looper.getMainLooper());
-        
-        // 从Flutter引擎获取SurfaceTexture入口
-        textureEntry = textureRegistry.createSurfaceTexture();
-        textureId = textureEntry.id();
-        flutterSurfaceTexture = textureEntry.surfaceTexture();
-        
-        // 设置初始大小
-        flutterSurfaceTexture.setDefaultBufferSize(1, 1);
-        
-        // 创建Surface，Flutter将渲染到这个Surface
-        flutterSurface = new Surface(flutterSurfaceTexture);
         
         // 初始化调试画笔
         debugPaint = new Paint();
@@ -137,12 +123,7 @@ class FlutterTextureView implements PlatformView, MethodCallHandler, TextureView
                         ViewGroup.LayoutParams.MATCH_PARENT, 
                         ViewGroup.LayoutParams.MATCH_PARENT));
         
-        Log.d(TAG, "已创建FlutterTextureView和TextureView, textureId=" + textureId);
-        
-        // 通知Flutter已创建纹理
-        mainHandler.post(() -> {
-            methodChannel.invokeMethod("textureReady", textureId);
-        });
+        Log.d(TAG, "已创建FlutterTextureView和TextureView");
     }
 
     /**
@@ -166,6 +147,7 @@ class FlutterTextureView implements PlatformView, MethodCallHandler, TextureView
                 
                 // 绘制调试信息
                 String info = "TextureView ID: " + viewId + 
+                             " TextureID: " + flutterTextureId +
                              " Load: " + loadType + 
                              " Size: " + getWidth() + "x" + getHeight();
                 canvas.drawText(info, 20, 60, debugPaint);
@@ -203,19 +185,25 @@ class FlutterTextureView implements PlatformView, MethodCallHandler, TextureView
         isDestroyed.set(true);
         
         mainHandler.post(() -> {
-            // 释放Flutter相关资源
-            if (flutterSurface != null) {
-                flutterSurface.release();
-                flutterSurface = null;
-            }
-            
-            textureEntry.release();
-            
             // 移除调试覆盖层
             if (debugOverlay != null && rootView != null) {
                 rootView.removeView(debugOverlay);
                 debugOverlay = null;
             }
+            
+            // 释放Flutter纹理资源
+            if (textureEntry != null) {
+                textureEntry.release();
+                textureEntry = null;
+            }
+            
+            // 释放Surface
+            if (surface != null) {
+                surface.release();
+                surface = null;
+            }
+            
+            // 不要释放SurfaceTexture，它会随TextureView自动释放
             
             methodChannel.setMethodCallHandler(null);
             Log.d(TAG, "资源已清理完成");
@@ -231,30 +219,22 @@ class FlutterTextureView implements PlatformView, MethodCallHandler, TextureView
         
         switch (call.method) {
             case "getTextureId":
-                Log.d(TAG, "getTextureId: 返回textureId=" + textureId);
-                result.success(textureId);
+                Log.d(TAG, "getTextureId: 返回" + flutterTextureId);
+                result.success(flutterTextureId);
                 break;
                 
             case "updateTexture":
-                // 确保TextureView可用，且Flutter的SurfaceTexture已准备就绪
+                // 请求更新纹理，如果需要进行额外操作可以在这里处理
                 if (isReady && !isDestroyed.get()) {
-                    try {
-                        // Flutter引擎已经在flutterSurfaceTexture上渲染了内容
-                        // TextureView展示自己的SurfaceTexture内容，与Flutter的渲染解耦
-                        // 但我们需要通知Flutter帧已更新，以保持同步
-                        
-                        result.success(true);
-                        
-                        // 通知Flutter帧已更新
-                        mainHandler.post(() -> {
-                            methodChannel.invokeMethod("textureFrameAvailable", null);
-                        });
-                    } catch (Exception e) {
-                        Log.e(TAG, "updateTexture失败", e);
-                        result.error("TEXTURE_ERROR", e.getMessage(), null);
+                    if (surface != null) {
+                        // 这里可以添加额外渲染逻辑，如果需要在Native层绘制额外内容
+                        // Canvas canvas = surface.lockCanvas(null);
+                        // ... 渲染操作 ...
+                        // surface.unlockCanvasAndPost(canvas);
                     }
+                    result.success(true);
                 } else {
-                    Log.d(TAG, "updateTexture: 纹理未就绪或已销毁");
+                    Log.d(TAG, "updateTexture: TextureView未就绪或已销毁");
                     result.success(false);
                 }
                 break;
@@ -267,12 +247,23 @@ class FlutterTextureView implements PlatformView, MethodCallHandler, TextureView
 
     // TextureView.SurfaceTextureListener实现
     @Override
-    public void onSurfaceTextureAvailable(@NonNull SurfaceTexture surfaceTexture, int width, int height) {
+    public void onSurfaceTextureAvailable(@NonNull SurfaceTexture surface, int width, int height) {
         Log.d(TAG, "onSurfaceTextureAvailable: width=" + width + ", height=" + height);
         
         try {
-            // 设置Flutter SurfaceTexture的大小
+            // 保存TextureView的SurfaceTexture
+            this.surfaceTexture = surface;
+            
+            // 将SurfaceTexture注册到Flutter引擎
+            textureEntry = textureRegistry.createSurfaceTexture();
+            flutterTextureId = textureEntry.id();
+            
+            // 获取Flutter分配的SurfaceTexture，并将其设置给TextureView
+            SurfaceTexture flutterSurfaceTexture = textureEntry.surfaceTexture();
             flutterSurfaceTexture.setDefaultBufferSize(width, height);
+            
+            // 创建Surface用于渲染
+            this.surface = new Surface(flutterSurfaceTexture);
             
             // 添加调试覆盖层
             if (showDebugInfo) {
@@ -281,42 +272,56 @@ class FlutterTextureView implements PlatformView, MethodCallHandler, TextureView
             
             isReady = true;
             
-            // 通知Flutter原生TextureView已准备就绪
+            // 通知Flutter纹理已准备就绪，并传递纹理ID
             mainHandler.post(() -> {
-                methodChannel.invokeMethod("surfaceTextureReady", null);
+                methodChannel.invokeMethod("textureReady", flutterTextureId);
             });
+            
+            Log.d(TAG, "TextureView准备完成，Flutter纹理ID: " + flutterTextureId);
         } catch (Exception e) {
             Log.e(TAG, "设置SurfaceTexture失败", e);
         }
     }
 
     @Override
-    public boolean onSurfaceTextureDestroyed(@NonNull SurfaceTexture surfaceTexture) {
+    public boolean onSurfaceTextureDestroyed(@NonNull SurfaceTexture surface) {
         Log.d(TAG, "onSurfaceTextureDestroyed");
-        isReady = false;
-        return true;
+        if (!isDestroyed.get()) {
+            // 自动标记为已销毁
+            isDestroyed.set(true);
+        }
+        return true; // 返回true让TextureView自行处理清理工作
     }
 
     @Override
-    public void onSurfaceTextureSizeChanged(@NonNull SurfaceTexture surfaceTexture, int width, int height) {
+    public void onSurfaceTextureSizeChanged(@NonNull SurfaceTexture surface, int width, int height) {
         Log.d(TAG, "onSurfaceTextureSizeChanged: width=" + width + ", height=" + height);
-        
-        try {
-            // 更新Flutter SurfaceTexture的大小
-            flutterSurfaceTexture.setDefaultBufferSize(width, height);
-            
-            // 通知Flutter纹理大小已改变
-            mainHandler.post(() -> {
-                methodChannel.invokeMethod("textureSizeChanged", null);
-            });
-        } catch (Exception e) {
-            Log.e(TAG, "更新SurfaceTexture大小失败", e);
+        if (textureEntry != null) {
+            try {
+                // 更新Flutter纹理的大小
+                SurfaceTexture flutterSurfaceTexture = textureEntry.surfaceTexture();
+                flutterSurfaceTexture.setDefaultBufferSize(width, height);
+                
+                // 通知Flutter纹理大小改变
+                mainHandler.post(() -> {
+                    methodChannel.invokeMethod("textureSizeChanged", 
+                            new int[]{width, height});
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "更新纹理大小失败", e);
+            }
         }
     }
 
     @Override
-    public void onSurfaceTextureUpdated(@NonNull SurfaceTexture surfaceTexture) {
-        // 当TextureView内容更新时触发
-        // 由于内容由Flutter控制，此处不需要特殊处理
+    public void onSurfaceTextureUpdated(@NonNull SurfaceTexture surface) {
+        // 这个回调会非常频繁，不要在这里打印日志
+        if (!isDestroyed.get()) {
+            // 通知Flutter新的帧可用
+            mainHandler.post(() -> {
+                // 不使用invokeMethod，减少消息传递开销
+                // methodChannel.invokeMethod("textureFrameAvailable", null);
+            });
+        }
     }
 } 

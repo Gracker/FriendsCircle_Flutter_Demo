@@ -29,9 +29,6 @@ class _NativeTextureViewState extends State<NativeTextureView> with WidgetsBindi
   /// 平台视图工厂ID
   static const String viewType = 'com.androidperformance.wechat_friend_flutter_demo/texture_view';
   
-  /// 纹理ID
-  int? _textureId;
-  
   /// 是否已准备好显示
   bool _isReady = false;
   
@@ -47,6 +44,9 @@ class _NativeTextureViewState extends State<NativeTextureView> with WidgetsBindi
   /// 创建时间戳，用于计算各阶段耗时
   final DateTime _creationTime = DateTime.now();
   
+  /// 纹理ID
+  int? _textureId;
+
   @override
   void initState() {
     super.initState();
@@ -122,7 +122,7 @@ class _NativeTextureViewState extends State<NativeTextureView> with WidgetsBindi
     if (!_isReady) {
       // 每秒打印一次未就绪状态，避免日志过多
       if (timer.tick % 10 == 0) {
-        debugPrint('NativeTextureView: 等待纹理就绪...');
+        debugPrint('NativeTextureView: 等待TextureView就绪...');
       }
       return;
     }
@@ -132,16 +132,16 @@ class _NativeTextureViewState extends State<NativeTextureView> with WidgetsBindi
       if (success) {
         // 重置错误计数
         if (_errorCount > 0) {
-          debugPrint('NativeTextureView: 纹理更新恢复正常');
+          debugPrint('NativeTextureView: TextureView更新恢复正常');
         }
         _errorCount = 0;
       } else if (timer.tick % 10 == 0) {
         // 每秒打印一次更新失败，避免日志过多
-        debugPrint('NativeTextureView: 纹理更新返回失败');
+        debugPrint('NativeTextureView: TextureView更新返回失败');
       }
     } catch (e) {
       _errorCount++;
-      debugPrint('NativeTextureView: 纹理更新异常 $_errorCount/$_maxErrorCount: $e');
+      debugPrint('NativeTextureView: TextureView更新异常 $_errorCount/$_maxErrorCount: $e');
       
       if (_errorCount >= _maxErrorCount) {
         debugPrint('NativeTextureView: 达到最大错误次数，暂停更新并计划重试');
@@ -151,7 +151,7 @@ class _NativeTextureViewState extends State<NativeTextureView> with WidgetsBindi
         // 延迟后重试
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) {
-            debugPrint('NativeTextureView: 尝试重新启动纹理更新');
+            debugPrint('NativeTextureView: 尝试重新启动TextureView更新');
             _startPeriodicUpdates();
           }
         });
@@ -164,48 +164,17 @@ class _NativeTextureViewState extends State<NativeTextureView> with WidgetsBindi
     final creationDuration = DateTime.now().difference(_creationTime);
     debugPrint('NativeTextureView: 平台视图创建完成 viewId=$viewId, 耗时: ${creationDuration.inMilliseconds}ms');
     _controller.initMethodChannel(viewId);
-    _checkTextureId();
-  }
-  
-  /// 检查纹理ID是否可用
-  Future<void> _checkTextureId() async {
-    debugPrint('NativeTextureView: 开始检查纹理ID');
     
-    // 尝试5次获取纹理ID
-    for (int i = 0; i < 5; i++) {
-      if (_controller.textureId != null) {
-        final idCheckDuration = DateTime.now().difference(_creationTime);
-        debugPrint('NativeTextureView: 已从控制器获取到纹理ID=${_controller.textureId}, 耗时: ${idCheckDuration.inMilliseconds}ms');
-        
-        if (mounted) {
-          setState(() {
-            _textureId = _controller.textureId;
-            _isReady = true;
-          });
-        }
-        return;
-      }
-      
-      debugPrint('NativeTextureView: 通过方法通道请求纹理ID (尝试 ${i+1}/5)');
-      final id = await _controller.getTextureId();
-      
-      if (id != null && mounted) {
-        final idRequestDuration = DateTime.now().difference(_creationTime);
-        debugPrint('NativeTextureView: 从方法通道获取到纹理ID=$id, 耗时: ${idRequestDuration.inMilliseconds}ms');
-        
+    // 监听纹理就绪事件
+    _controller.addTextureReadyListener((textureId) {
+      if (mounted && textureId >= 0) {
         setState(() {
-          _textureId = id;
+          _textureId = textureId;
           _isReady = true;
         });
-        return;
+        debugPrint('NativeTextureView: 收到纹理ID: $_textureId');
       }
-      
-      // 等待一段时间后重试
-      debugPrint('NativeTextureView: 未获取到纹理ID，等待100ms后重试');
-      await Future.delayed(const Duration(milliseconds: 100));
-    }
-    
-    debugPrint('NativeTextureView: 5次尝试后仍未获取到纹理ID');
+    });
   }
 
   @override
@@ -217,11 +186,7 @@ class _NativeTextureViewState extends State<NativeTextureView> with WidgetsBindi
     
     return Stack(
       children: [
-        // 如果纹理ID可用，则使用Texture widget显示
-        if (_textureId != null && _isReady)
-          Texture(textureId: _textureId!),
-          
-        // 使用AndroidView创建原生TextureView
+        // 使用AndroidView创建原生TextureView作为渲染容器
         SizedBox.expand(
           child: AndroidView(
             viewType: viewType,
@@ -231,6 +196,15 @@ class _NativeTextureViewState extends State<NativeTextureView> with WidgetsBindi
             onPlatformViewCreated: _onPlatformViewCreated,
           ),
         ),
+        
+        // 如果有纹理ID，使用Flutter的Texture组件显示原生内容
+        if (_textureId != null && _isReady)
+          Positioned.fill(
+            child: Texture(
+              textureId: _textureId!,
+              filterQuality: FilterQuality.low,
+            ),
+          ),
         
         // 子组件
         widget.child,
