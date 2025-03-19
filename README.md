@@ -96,6 +96,13 @@ This is a Flutter Demo App for testing Android platform Performance and Power, s
 
 ## 最近更新 / Recent Updates
 
+### 2024-12-13: 修复TextureView实现
+- 修复TextureView实现，确保真正使用Android原生TextureView
+- 改进TextureView与Flutter引擎的集成，使用纹理注册系统共享渲染内容
+- 实现了双向纹理共享机制：Flutter内容 -> Android TextureView -> Flutter Texture小部件
+- 优化纹理生命周期管理，解决资源泄漏问题
+- 添加纹理ID显示，便于调试和验证
+
 ### 2024-12-12: TextureView渲染模式实现
 - 添加原生TextureView支持，实现Native与Flutter集成渲染
 - 新增TextureViewFactory类，实现PlatformView与Flutter的集成
